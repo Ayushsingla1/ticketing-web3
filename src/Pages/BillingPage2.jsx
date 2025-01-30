@@ -8,6 +8,8 @@ import Temp from "./temp";
 import sciCut from '../assets/Group 20.svg'
 import { collection, getDocs } from "firebase/firestore";
 import Counter from "../Components/Counter";
+import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { useAccount } from "wagmi";
 
 const BillingPage2 = () => {
 
@@ -15,32 +17,14 @@ const BillingPage2 = () => {
     const { id } = useParams();
     const [loading,setLoading] = useState(true)
     const [item, setitem] = useState({});
-    const [account, setAccount] = useState(null);
+    const acconut = useAccount();
     const [user1, setUser1] = useState(null);
     const [isLoggedIn, setIsLoggedIn] = useState(false)
-    // const [rates, setRates] = useState({});
-    // const [selectedCurrency, setSelectedCurrency] = useState('USD');
-    // const [convertedValue, setConvertedValue] = useState(null);
 
     const [tickets, setTickets] = useState(() => {
         const savedTickets = localStorage.getItem('tickets');
         return savedTickets ? parseInt(savedTickets) : 1;
     });
-    
-
-    const connectWallet = async () => {
-        if (window.ethereum) {
-          try {
-            const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-            setAccount(accounts[0]);
-          } catch (error) {
-            console.error('Error connecting to MetaMask:', error);
-          }
-        } else {
-          alert('MetaMask not found. Please install MetaMask!');
-        }
-      };
-
 
     useEffect(() => {
         setLoading(true)
@@ -87,7 +71,11 @@ const BillingPage2 = () => {
             <div className="w-11/12 flex items-center pt-3 justify-between">
                 <span className="text-[45px] font-jaini">Ticketing</span>
                 <div className="flex gap-x-2">
-                    <button className="px-4 py-2 bg-white text-[#1F1F1F] text-[24px] max-h-[50px] border border-black rounded-md" onClick={connectWallet}>{account ? (<div>{account.slice(0, 4) + '...' + account.slice(-4)}</div>) : (<div>Connect Wallet</div>)}</button>
+                <ConnectButton
+                  chainStatus="icon"
+                  showBalance={false}
+                  accountStatus="address"
+                />
                     {user1 ? (<img src={user1.photoURL} className="w-[50px] h-[50px] rounded-full" />) : (<div className="bg-purple-600 w-[50px] h-[50px] rounded-full"></div>)}
                 </div>
             </div>
@@ -134,7 +122,7 @@ const BillingPage2 = () => {
 
                             <span className="flex justify-center items-center gap-x-2"><span>Price</span> <span className="text-yellow-400">:</span> <span className="text-red-500">{item.Price * tickets}</span></span>
 
-                            {account ? (<Temp accountAddress={account} userName={user1.displayName} tickets={tickets} event={item}/>) : (<Temp tickets={tickets} event={item} />)}
+                            {account ? (<Temp accountAddress={account.address} userName={user1.displayName} tickets={tickets} event={item}/>) : (<Temp tickets={tickets} event={item} />)}
 
                         </div>
                     </div>

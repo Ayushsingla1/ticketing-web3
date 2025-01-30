@@ -4,11 +4,14 @@ import './index.css'
 import {BrowserRouter} from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import AppContextProvider from './Context/AppContext.jsx';
+import WalletProvider from './walletProvider.jsx';
 createRoot(document.getElementById('root')).render(
-  <BrowserRouter>
-    <AppContextProvider>
-      <div><Toaster/></div>
-      <App />
-    </AppContextProvider>
-  </BrowserRouter>
+  <WalletProvider>
+    <BrowserRouter>
+      <AppContextProvider>
+        <div><Toaster/></div>
+        <App />
+      </AppContextProvider>
+    </BrowserRouter>
+  </WalletProvider>
 )

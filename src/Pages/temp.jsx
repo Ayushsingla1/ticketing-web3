@@ -10,7 +10,7 @@ import { useNavigate } from "react-router-dom";
 import { AppContext } from "../Context/AppContext";
 import { doc, getDoc, updateDoc, arrayUnion } from "firebase/firestore"; 
 import { db , auth } from "../firebase";
-
+import { PinataSDK } from "pinata-web3";
 
 const newContractAddress = "0xAf8D65Ba9f108496dFAD99F007d74d699F750c64";
 
@@ -30,6 +30,11 @@ function Temp({ event, tickets, userName, accountAddress }) {
 
   const pinataApiKey = import.meta.env.VITE_PINATA_API_KEY;
   const pinataApiSecret = import.meta.env.VITE_PINATA_SECRET;
+
+  const pinata = new PinataSDK({
+    pinataJwt: import.meta.env.VITE_REACT_PINATA_JWT_SECRET,
+    pinataGateway: "example-gateway.mypinata.cloud",
+  })
 
 
   useEffect(() => {
@@ -92,18 +97,10 @@ function Temp({ event, tickets, userName, accountAddress }) {
   }
 
   const uploadMetadataToIPFS = async (metadata) => {
-    const url = import.meta.env.VITE_PINATA_URL;
-
     try {
-      const response = await axios.post(url, metadata, {
-        headers: {
-          'Content-Type': 'application/json',
-          'pinata_api_key': pinataApiKey,
-          'pinata_secret_api_key': pinataApiSecret,
-        },
-      });
-
-      return response.data.IpfsHash;
+      const upload = await pinata.upload.json(metadata)
+      console.log(upload)
+      return upload.IpfsHash;
 
 
     } catch (error) {
