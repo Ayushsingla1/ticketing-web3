@@ -7,12 +7,14 @@ import { collection, getDocs } from "firebase/firestore";
 import { db } from "../firebase";
 import Loader from "../Components/Loader";
 import Temp from "./temp";
+// import { BrowserProvider } from "ethers"; 
 
 const BillingPage = () => {
     const navigate = useNavigate();
     const {id} = useParams();
     const [item,setitem] = useState({});
     const [account, setAccount] = useState(null);
+    const [isConnected, setIsConnected] = useState(false);
     const [user1,setUser1] = useState(null);
     const [isLoggedIn, setIsLoggedIn] = useState(false)
     const [tickets, setTickets] = useState(() => {
@@ -23,15 +25,15 @@ const BillingPage = () => {
 
     const connectWallet = async () => {
         if (window.ethereum) {
-          try {
-            const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-            setAccount(accounts[0]);
-          } catch (error) {
-            console.error('Error connecting to MetaMask:', error);
+            try {
+              const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+              setAccount(accounts[0]);
+            } catch (error) {
+              console.error('Error connecting to MetaMask:', error);
+            }
+          } else {
+            alert('MetaMask not found. Please install MetaMask!');
           }
-        } else {
-          alert('MetaMask not found. Please install MetaMask!');
-        }
       };
 
       const decreaseCount = () => {
@@ -72,18 +74,20 @@ const BillingPage = () => {
             }
           };
           const auth = getAuth();
-          const unsubscribe = onAuthStateChanged(auth, (user) => {
+            const unsubscribe = onAuthStateChanged(auth, (user) => {
             console.log(user);
-            console.log(user.photoURL)
-            setUser1(user);
+  
             if (user) {
-              setIsLoggedIn(true);
+                setUser1(user)
+                setIsLoggedIn(true);
             } else {
-              setIsLoggedIn(false);
+                navigate('/login')
+                console.log("no user found")
+                setIsLoggedIn(false);
             }
-          });
-          fetchEvents();
-          return () => unsubscribe();
+            });
+            fetchEvents();
+            return () => unsubscribe();
         }, [id]);
 
 

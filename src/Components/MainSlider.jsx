@@ -15,13 +15,8 @@ function MainSlider({ data }) {
     slidesToShow: 1,
     slidesToScroll: 1,
     customPaging: (i) => (
-      <div className="active-one w-4 h-2 rounded-sm bg-gray-300 cursor-pointer mt-4"></div>
+      <div className="active-one w-4 h-1 rounded-sm bg-gray-300 cursor-pointer mt-6"></div>
     ),
-    // appendDots: (dots) => (
-    // //   <div className="flex justify-center absolute">
-    // //     <div className="flex justify-center items-center space-x-2 ">{dots}</div>
-    // //   </div>
-    // ),
   };
 
   return (

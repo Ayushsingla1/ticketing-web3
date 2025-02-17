@@ -1,61 +1,41 @@
 import { useContext, useEffect, useState } from "react";
 import { ABI, Address } from "../contract";
-import Web3 from "web3";
-import axios from "axios";
+import { ethers } from "ethers";
 import { useNavigate } from "react-router-dom";
 import { AppContext } from "../Context/AppContext";
+import { doc, getDoc, updateDoc, arrayUnion } from "firebase/firestore"; 
+import { db , auth } from "../firebase";
+import { PinataSDK } from "pinata-web3";
+import { useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+
+
+// const newContractAddress = "0xAf8D65Ba9f108496dFAD99F007d74d699F750c64";
 
 function Temp({ event, tickets, userName, accountAddress }) {
-  const [web3, setWeb3] = useState(null);
-  const [contract, setContract] = useState(null);
+  const [signerContract, setSignerContract] = useState(null);
   const {ipfsArray, setIpfsArray} = useContext(AppContext)
   const navigate = useNavigate();
+  const IpfsUrlArray = [];
+  // const [isMining, setIsMining] = useState(false);
+  const provider = new ethers.BrowserProvider(window.ethereum)
+  const contractABI = ABI;
+  const contractAddress = Address;
+  const contract = new ethers.Contract(contractAddress, contractABI, provider)
+  const pinataJwt = import.meta.env.VITE_REACT_PINATA_JWT_SECRET;
+  const {writeContract, data: hash} = useWriteContract()
+  const {isLoading, isSuccess, isError} = useWaitForTransactionReceipt({
+    hash
+  })
+  const pinata = new PinataSDK({
+    pinataJwt: pinataJwt,
+    pinataGateway: `${import.meta.env.VITE_REACT_PINATA_GATEWAY}`,
+  });
 
-
-  //pinata key and secret
-  const pinataApiKey = import.meta.env.VITE_PINATA_API_KEY;
-  const pinataApiSecret = import.meta.env.VITE_PINATA_SECRET;
-
-
-  useEffect(() => {
-    const init = async () => {
-      if (window.ethereum) {
-        try {
-          // Request account access
-          // await window.ethereum.request({ method: "eth_requestAccounts" });
-
-          // Initialize Web3
-          const newWeb3 = new Web3(window.ethereum);
-          setWeb3(newWeb3);
-
-          // Get the connected accounts
-          // const accounts = await newWeb3.eth.getAccounts();
-
-          // Initialize the contract
-          const newContract = new newWeb3.eth.Contract(
-            ABI,
-            Address
-          );
-          setContract(newContract);
-
-          // Load events
-          //   await loadEvents(newContract);
-        } catch (error) {
-          console.error("User denied account access or other error:", error);
-        }
-      } else {
-        alert("Please install MetaMask!");
-      }
-    };
-
-    init();
-  }, []);
-
-  //metadata creation and deployement to IPFS
+  
   const deployToIpfs = async() => {
     
+    console.log(contract)
     setIpfsArray([])
-    const IpfsUrlArray = []
 
     for(let i=0; i<tickets; i++){
       const metadata = {
@@ -70,16 +50,11 @@ function Temp({ event, tickets, userName, accountAddress }) {
       }
       try {
         
-        event.TotalTickets--; //this here should be a db call to decrease the total ticket count permanently
-  
+        event.TotalTickets--; 
+        console.log(metadata)
         const metadataIpfsHash = await uploadMetadataToIPFS(metadata);
         console.log('Metadata uploaded to IPFS ticket ',i," :", `https://gateway.pinata.cloud/ipfs/${metadataIpfsHash}`);
-  
-  
-        // https://ipfs.io/ipfs/QmQw7DovEvcdmkZZQgp9sAvBAb9HC9iGRoFmSJu1L9Bq3A  -> dummy URI
-
         IpfsUrlArray.push(`https://gateway.pinata.cloud/ipfs/${metadataIpfsHash}`)
-  
         
       } catch (error) {
         console.log(`error while uploading to IPFS ${error}`);
@@ -95,15 +70,18 @@ function Temp({ event, tickets, userName, accountAddress }) {
     const url = import.meta.env.VITE_PINATA_URL;
 
     try {
-      const response = await axios.post(url, metadata, {
-        headers: {
-          'Content-Type': 'application/json',
-          'pinata_api_key': pinataApiKey,
-          'pinata_secret_api_key': pinataApiSecret,
-        },
-      });
+      const response = await pinata.upload.json({
+        eventName: metadata["eventName"],
+        eventDescription: metadata["eventDescription"],
+        eventDate: metadata["eventDate"],
+        eventArtist: metadata["eventArtist"],
+        eventVenue: metadata["eventVenue"],
+        owner: metadata["owner"],
+        ticketNumber: metadata["ticketNumber"],
+        NFTimage:  metadata["NFTimage"]
+      })
 
-      return response.data.IpfsHash;
+      return response.IpfsHash;
 
 
     } catch (error) {
@@ -112,54 +90,99 @@ function Temp({ event, tickets, userName, accountAddress }) {
     }
   };
 
-  // Function to buy a ticket
   const buyTicket = async (eventId, price, array) => {
+
     try {
-      const tx = await contract.methods.buyTickets(eventId, tickets, array).send({
-        from: accountAddress,
-        value: Web3.utils.toWei(price, "ether"),
+      const tx = await writeContract({
+        address: contractAddress,
+        abi: contractABI,
+        functionName: "buyTickets",
+        args: [eventId - 1, tickets, array],
       });
-      console.log("Ticket purchased:", tx);
-      if(tx){
-        return true;
-      }else{
-        return false;
-      }
     } catch (error) {
       console.error("Error buying ticket:", error);
     }
   };
 
-  const navigateToPaymentPage = (successfullTransaction) => {
-    if(successfullTransaction){
-      navigate(`/Payment/${event.id}${1}`)
-    }else{
-      navigate(`/Payment/${event.id}${0}`)
+  async function updateUserNftAndRewardToken(successfullTransaction) {
+    try {
+      const user = auth.currentUser;
+      console.log(user);
+      if (!user) {
+        console.error('No user is currently logged in');
+        navigate('/login');
+        return;
+      }
+  
+      const userId = user.uid;
+      console.log(userId);
+      const userDocRef = doc(db, 'users', userId);
+      const userDoc = await getDoc(userDocRef);
+      console.log(userDoc);
+      
+      if (!userDoc.exists()) {
+        console.error('No such user document!');
+        return;
+      }
+  
+      const currentNftArray = userDoc.data().nft || [];
+      const currentRewardTokens = userDoc.data().rewardTokens || 0;
+  
+      let updatedNftArray = [...currentNftArray]; 
+  
+      for (let i = 0; i < IpfsUrlArray.length; i++) {
+        const newNftData = {
+          ipfsUrl: IpfsUrlArray[i],
+          eventId: event.id,
+          address: accountAddress
+        };
+        console.log(newNftData);
+        console.log(event.Price);
+
+        updatedNftArray.push(newNftData);
+      }
+
+      await updateDoc(userDocRef, {
+        nft: updatedNftArray,
+        rewardTokens: currentRewardTokens + IpfsUrlArray.length * event.Price * 1000, 
+      });
+  
+      console.log('User details updated successfully');
+    } catch (error) {
+      console.error('Error updating user details:', error);
+    } finally {
+      navigateToPaymentPage(successfullTransaction);
     }
   }
-
+  
   const buyTicketHandeler = async(eventId, price) => {
     if(!accountAddress){
       alert('no wallet detected, connect to a wallet using the Connect Wallet button');
       return
     }
     await deployToIpfs()
-    const successfullTransaction = await buyTicket(eventId, price, ipfsArray);
-    // if(successfullTransaction){
-    //   await deployToIpfs()
-    // }else{
-    //   await deployToIpfs()
-    //   // console.log('transaction denied')
-    // }
-    navigateToPaymentPage(successfullTransaction);
+
+    const successfullTransaction = await buyTicket(eventId, price, IpfsUrlArray);
+
+  }
+
+  if(isSuccess){
+    navigate(`/Payment/${event.id}${1}`)
+    return
+  }
+
+  if(isError){
+    navigate(`/Payment/${event.id}${0}`)
+    return
   }
 
   return (
     <button
       className="py-1 px-4 rounded-lg bg-green-500 text-[24px] text-black font-semibold justify-self-end"
-      onClick={() => buyTicketHandeler(event.id, 0.02 * tickets)}
+      disabled={isLoading}
+      onClick={() => buyTicketHandeler(event.id, event.Price * tickets)}
     >
-      Buy Ticket
+      {isLoading ? "Transaction in process..." : "Buy Tickets"}
     </button>
   );
 }

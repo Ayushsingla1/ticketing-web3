@@ -4,14 +4,13 @@ import Home from './Pages/Home'
 import Events from './Pages/Events'
 import SignUp from './Pages/SignUp'
 import Login from './Pages/Login'
-import BillingPage from './Pages/BillingPage'
+// import BillingPage from './Pages/BillingPage'
 import NotFound from './Pages/NotFound'
 import Event from './Pages/Event'
-import Payment from './Pages/Payment'
+import Payment2 from './Pages/Payment2'
 import CreateEvent from './Pages/CreateEvent'
+import BillingPage2 from './Pages/BillingPage2'
 import About from './Pages/About'
-import Web3Comp from './Pages/web3Comp'
-import EtherComp from './Pages/etherComp'
 
 function App() {
   return (
@@ -23,12 +22,10 @@ function App() {
           <Route path = '/Signup' element = {<SignUp/>}/>
           <Route path = '/Login' element = {<Login/>}/>
           <Route path = '/CreateEvent' element = {<CreateEvent/>}/>
-          <Route path = '/web3Comp' element = {<Web3Comp/>}/>
-          <Route path = '/etherComp' element = {<EtherComp/>}/>
-          <Route path = '/About' element = {<About/>}/>
-          <Route path = '/Billing/:id' element = {<BillingPage/>}/>
+          <Route path = '/Billing/:id' element = {<BillingPage2/>}/>
           <Route path = '/Event/:id' element = {<Event/>}/>
-          <Route path = '/Payment/:id' element = {<Payment/>}/>
+          <Route path = '/About' element = {<About/>}/>
+          <Route path = '/Payment/:id' element = {<Payment2/>}/>
           <Route path = '*' element = {<NotFound/>}/>
         </Route>
       </Routes>

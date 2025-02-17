@@ -1,14 +1,13 @@
 import { useState } from "react";
 import SimpleSlider from "../Components/SignSlider";
-import { NavLink } from "react-router-dom";
-import { useNavigate } from "react-router-dom";
+import { NavLink , useNavigate } from "react-router-dom";
 import { FcGoogle } from "react-icons/fc";
-import { createUserWithEmailAndPassword , GoogleAuthProvider, signInWithPopup, signOut} from "firebase/auth";
-import { useAuthState } from 'react-firebase-hooks/auth';
-import { auth } from "../firebase";
+import { createUserWithEmailAndPassword , GoogleAuthProvider, signInWithPopup} from "firebase/auth";
+import { auth , db} from "../firebase";
+import { doc, setDoc , getDoc} from "firebase/firestore";
+
 import toast from "react-hot-toast";
 const SignUp=()=>{
-    const [user] = useAuthState(auth);
     const navigate = useNavigate();
     const [data,setdata] = useState({name : "" , contact : "", email : "" , password : ""});
     const changeHandler = (e)=>{
@@ -18,32 +17,63 @@ const SignUp=()=>{
             [name] : value,
         }))
     }
-    const submitHandler = () => {
-        createUserWithEmailAndPassword(auth, data.email, data.password,data.contact,data.name)
-        .then((userCredential) => {
-        const user = userCredential.user;
-        toast.success('SignUp Successfull')
-        navigate('/')
-    })
-    .catch((error) => {
-    const errorCode = error.code;
-    const errorMessage = error.message;
-    toast.error("SignUp Unsuccessful")
-  });
-    setdata({name : "" , contact : "", email : "" , password : ""});
-    }
-    const signInWithGoogle = () => {
+    const submitHandler = async (e) => {
+        e.preventDefault();
+        console.log("hello insdie")
+        try {
+            const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
+            const user = userCredential.user;
+            console.log("User:", user);
+            try {
+                const res = await setDoc(doc(db, "users", user.uid), {
+                    name: data.name,
+                    contact: data.contact,
+                    email: data.email,
+                    rewardTokens: 0,
+                    nft: [],
+                });
+                console.log(res)
+                toast.success('SignUp Successful');
+                navigate('/');
+            } catch (firestoreError) {
+                console.error("Error saving user data to Firestore:", firestoreError);
+                toast.error("Failed to save user data to Firestore.");
+            }
+        } catch (error) {
+            console.error("Error during sign up:", error.message);
+            toast.error("SignUp Unsuccessful");
+        }
+        setdata({ name: "", contact: "", email: "", password: "" });
+    };
+    
+    const handleSignup = async () => {
         const provider = new GoogleAuthProvider();
-        signInWithPopup(auth, provider).
-        then(()=>{
-            toast.success("SignUp Successfull")
+        try {
+            const result = await signInWithPopup(auth, provider);
+            const user = result.user;
+            console.log(user);
+            const userDocRef = doc(db, "users", user.uid);
+            const userDoc = await getDoc(userDocRef);
+            
+            if (!userDoc.exists()) {
+                await setDoc(userDocRef, {
+                    name: user.displayName,
+                    email: user.email,
+                    profilePicture: user.photoURL,
+                    rewardTokens: 0,
+                    nft: [],
+                });
+                console.log("User details saved to Firestore:", user);
+                toast.success("Account created and logged in successfully!");
+            } else {
+                console.log("User already exists in Firestore:", user);
+                toast.success("Sign in successfully!");
+            }
             navigate('/');
-        })
-        .catch((error) => {
-            console.error("Error signing in with Google", error);
-            toast.error('SignUp UnSuccessfull')
-          });
-      };
+        } catch (error) {
+            console.error("Error during Google SignUp:", error);
+        }
+    };
     return(
         <div className="overflow-hidden bg-Siuu w-screen h-screen flex justify-center items-center">
             <div className="w-1/2 my-auto h-screen">
@@ -68,13 +98,13 @@ const SignUp=()=>{
                     <div className="flex flex-col">
                             <label htmlFor="password" className="text-xl">Password</label>
                             <input type="password" name="password" value={data.password} onChange={changeHandler} id="password" required className="h-9 border-2 rounded-lg p-2"/>
-                        </div>
+                    </div>
                     <div className="flex justify-center items-center h-12 bg-[#0E64D2] rounded-md cursor-pointer"> 
-                    <button onClick={submitHandler} className="text-xl">Create Account</button>
+                    <button onClick={(e)=> {submitHandler(e)}} className="text-xl">Create Account</button>
                     </div>
                 </form>
                 <div className="mt-4 font-poppins">Already have an account? <NavLink to='/login' className="text-blue-600">Login</NavLink></div>
-                <div className="flex justify-between items-center border-black border-2 border-opacity-60 py-1 px-3 rounded-md mt-4 gap-x-3 w-64 cursor-pointer font-poppins" onClick={()=>{signInWithGoogle()}} >
+                <div className="flex justify-between items-center border-black border-2 border-opacity-60 py-1 px-3 rounded-md mt-4 gap-x-3 w-64 cursor-pointer font-poppins" onClick={()=>{handleSignup()}} >
                     <FcGoogle className="h-8 w-8"/>
                     <div><button>SignUp with Google</button></div>
                     <div>

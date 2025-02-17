@@ -26,6 +26,6 @@ export default {
       },
     },
   },
-  plugins: [typography,require('flowbite/plugin')],
+  // plugins: [typography,require('flowbite/plugin')],
 }
 

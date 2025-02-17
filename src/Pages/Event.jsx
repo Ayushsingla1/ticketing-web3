@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "../firebase";
 import Loader from "../Components/Loader";
+import Chat from "../Components/Chat";
 
 const Event = () => {
     const [item, setItem] = useState({});
@@ -46,8 +47,13 @@ const Event = () => {
         );
     }
     return (
-        <div className="bg-black w-screen h-screen overflow-hidden">
-            <EventElement item={item} />
+        <div>
+            <div className="bg-black w-screen h-screen overflow-hidden">
+                <EventElement item={item} />
+            </div>
+            <div className="fixed bottom-3 right-6">
+                <Chat/>
+            </div>
         </div>
     );
 }
